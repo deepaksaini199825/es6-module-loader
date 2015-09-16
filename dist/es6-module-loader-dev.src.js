@@ -1497,7 +1497,7 @@ SystemLoader.prototype.instantiate = function(load) {
       xhr.open("GET", url, true);
 
       if (xhr.setRequestHeader) {
-        xhr.setRequestHeader('Accept', 'application/x-es-module */*');
+        xhr.setRequestHeader('Accept', 'application/x-es-module, */*');
         // can set "authorization: true" to enable withCredentials only
         if (authorization) {
           if (typeof authorization == 'string')
@@ -1517,8 +1517,40 @@ SystemLoader.prototype.instantiate = function(load) {
   else if (typeof require != 'undefined') {
     var fs;
     fetchTextFromURL = function(url, authorization, fulfill, reject) {
-      if (url.substr(0, 8) != 'file:///')
-        throw new Error('Unable to fetch "' + url + '". Only file URLs of the form file:/// allowed running in Node.');
+      if (url.substr(0, 8) != 'file:///') {
+        if (typeof fetch === 'function') {
+          return fetch(url, {
+            cache: 'default',
+            method: 'GET'
+          })
+            .then(function (response) {
+              switch (response.status) {
+                // Happy path
+                case 200:
+                case 202:
+                case 304:
+                  return response.text().then(function (data) {
+                    // Strip Byte Order Mark out if it's the leading char
+                    var dataString = data + '';
+                    if (dataString[0] === '\ufeff') {
+                      dataString = dataString.substr(1);
+                    }
+
+                    fulfill(dataString);
+                  });
+
+                // Sad path
+                default:
+                  return reject(new Error(response.statusText));
+              }
+            })
+            .catch(function (err) {
+              return reject(err);
+            });
+        } else {
+          throw new Error('Unable to fetch "' + url + '". Only file URLs of the form file:/// allowed running in Node.');
+        }
+      }
       fs = fs || require('fs');
       if (isWindows)
         url = url.replace(/\//g, '\\').substr(8);
