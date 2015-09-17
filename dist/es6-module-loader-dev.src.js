@@ -1519,30 +1519,45 @@ SystemLoader.prototype.instantiate = function(load) {
     fetchTextFromURL = function(url, authorization, fulfill, reject) {
       if (url.substr(0, 8) != 'file:///') {
         if (typeof fetch === 'function') {
+          var requestHeaders = {};
+
+          fetch.__fetchCache = fetch.__fetchCache || {};
+          var cachedUrl = fetch.__fetchCache[url];
+
+          if (cachedUrl && cachedUrl.lastModified) {
+            requestHeaders['if-modified-since'] = cachedUrl.lastModified;
+          }
+
           return fetch(url, {
             cache: 'default',
+            headers: requestHeaders,
             method: 'GET'
           })
             .then(function (response) {
-              switch (response.status) {
-                // Happy path
-                case 200:
-                case 202:
-                case 304:
-                  return response.text().then(function (data) {
-                    // Strip Byte Order Mark out if it's the leading char
-                    var dataString = data + '';
-                    if (dataString[0] === '\ufeff') {
-                      dataString = dataString.substr(1);
-                    }
+              // Happy path
+              if (response.status === 304 || (response.status >= 200 && response.status < 300)) {
+                if (response.status === 304 && cachedUrl && cachedUrl.responseText) {
+                  return fulfill(cachedUrl.responseText);
+                }
 
-                    fulfill(dataString);
-                  });
+                return response.text().then(function (data) {
+                  // Strip Byte Order Mark out if it's the leading char
+                  var dataString = data + '';
+                  if (dataString[0] === '\ufeff') {
+                    dataString = dataString.substr(1);
+                  }
 
-                // Sad path
-                default:
-                  return reject(new Error(response.statusText));
+                  fetch.__fetchCache[url] = {
+                    lastModified: response.headers.get('last-modified'),
+                    responseText: dataString
+                  };
+
+                  return fulfill(dataString);
+                });
               }
+
+              // Sad path
+              return reject(new Error(response.statusText));
             })
             .catch(function (err) {
               return reject(err);
