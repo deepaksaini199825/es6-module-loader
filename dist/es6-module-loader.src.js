@@ -1177,7 +1177,15 @@ SystemLoader.prototype.instantiate = function(load) {
     fetchTextFromURL = function(url, authorization, fulfill, reject) {
       if (url.substr(0, 8) != 'file:///') {
         if (typeof fetch === 'function') {
-          var requestHeaders = {};
+          var requestHeaders = {
+            'accept': 'application/x-es-module, */*'
+          };
+
+          if (authorization) {
+            if (typeof authorization == 'string') {
+              requestHeaders['authorization'] = authorization;
+            }
+          }
 
           fetch.__fetchCache = fetch.__fetchCache || {};
           var cachedUrl = fetch.__fetchCache[url];
@@ -1193,7 +1201,7 @@ SystemLoader.prototype.instantiate = function(load) {
           })
             .then(function (response) {
               // Happy path
-              if (response.status === 304 || (response.status >= 200 && response.status < 300)) {
+              if (response.status >= 200 && response.status < 400) {
                 if (response.status === 304 && cachedUrl && cachedUrl.responseText) {
                   return fulfill(cachedUrl.responseText);
                 }
