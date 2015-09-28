@@ -78,9 +78,13 @@
     baseURI = baseURI.substr(0, baseURI.lastIndexOf('/') + 1);
   }
   else if (typeof process != 'undefined' && process.cwd) {
-    baseURI = 'file://' + (isWindows ? '/' : '') + process.cwd() + '/';
-    if (isWindows)
-      baseURI = baseURI.replace(/\\/g, '/');
+    if (__global.baseURI) {
+      baseURI = __global.baseURI;
+    } else {
+      baseURI = 'file://' + (isWindows ? '/' : '') + process.cwd() + '/';
+      if (isWindows)
+        baseURI = baseURI.replace(/\\/g, '/');
+    }
   }
   else if (typeof location != 'undefined') {
     baseURI = __global.location.href;
