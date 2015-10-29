@@ -1570,7 +1570,7 @@ SystemLoader.prototype.instantiate = function(load) {
               }
 
               // Sad path
-              return reject(new Error(response.statusText));
+              return reject(new Error('Fetch error' + (response.status ? ' (' + response.status + (response.statusText ? ' ' + response.statusText  : '') + ')' : '') + ' loading ' + url));
             })
             .catch(function (err) {
               return reject(err);
