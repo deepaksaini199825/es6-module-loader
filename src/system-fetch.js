@@ -75,8 +75,63 @@
   else if (typeof require != 'undefined' && typeof process != 'undefined') {
     var fs;
     fetchTextFromURL = function(url, authorization, fulfill, reject) {
-      if (url.substr(0, 8) != 'file:///')
-        throw new Error('Unable to fetch "' + url + '". Only file URLs of the form file:/// allowed running in Node.');
+      if (url.substr(0, 8) != 'file:///') {
+        if (typeof fetch === 'function') {
+          var requestHeaders = {
+            'accept': 'application/x-es-module, */*'
+          };
+
+          if (authorization) {
+            if (typeof authorization == 'string') {
+              requestHeaders['authorization'] = authorization;
+            }
+          }
+
+          fetch.__fetchCache = fetch.__fetchCache || {};
+          var cachedUrl = fetch.__fetchCache[url];
+
+          if (cachedUrl && cachedUrl.lastModified) {
+            requestHeaders['if-modified-since'] = cachedUrl.lastModified;
+          }
+
+          return fetch(url, {
+            cache: 'default',
+            headers: requestHeaders,
+            method: 'GET'
+          })
+            .then(function (response) {
+              // Happy path
+              if (response.status >= 200 && response.status < 400) {
+                if (response.status === 304 && cachedUrl && cachedUrl.responseText) {
+                  return fulfill(cachedUrl.responseText);
+                }
+
+                return response.text().then(function (data) {
+                  // Strip Byte Order Mark out if it's the leading char
+                  var dataString = data + '';
+                  if (dataString[0] === '\ufeff') {
+                    dataString = dataString.substr(1);
+                  }
+
+                  fetch.__fetchCache[url] = {
+                    lastModified: response.headers.get('last-modified'),
+                    responseText: dataString
+                  };
+
+                  return fulfill(dataString);
+                });
+              }
+
+              // Sad path
+              return reject(new Error('Fetch error' + (response.status ? ' (' + response.status + (response.statusText ? ' ' + response.statusText  : '') + ')' : '') + ' loading ' + url));
+            })
+            .catch(function (err) {
+              return reject(err);
+            });
+        } else {
+          throw new Error('Unable to fetch "' + url + '". Only file URLs of the form file:/// allowed running in Node.');
+        }
+      }
       fs = fs || require('fs');
       if (isWindows)
         url = url.replace(/\//g, '\\').substr(8);

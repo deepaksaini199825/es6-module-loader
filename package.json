@@ -26,6 +26,7 @@
     "expect.js": "^0.3.1",
     "gesalakacula": "^1.0.0",
     "grunt": "~0.4.1",
+    "grunt-cli": "^0.1.13",
     "grunt-contrib-concat": "^0.5.0",
     "grunt-contrib-jshint": "~0.6.0",
     "grunt-contrib-uglify": "~0.6.0",
@@ -55,6 +56,8 @@
     "node": ">=0.8.0"
   },
   "scripts": {
+    "dist": "grunt",
+    "lint": "grunt lint",
     "test": "npm run test:node && npm run test:browser",
     "test:node": "mocha test/_node-traceur.js && mocha test/_node-babel.js && mocha test/_node-typescript.js",
     "test:browser": "npm run test:browser-traceur && npm run test:browser-babel && npm run test:browser-typescript",
